@@ -148,13 +148,30 @@
     }
 
     // Reset all seats
-    async function resetAllSeats() {
-      await db
-        .from("seats")
+  async function resetAllSeats() {
+    try {
+      // Update all rows: set reserved=false and name=null
+      const { data, error } = await db
+        .from('seats')
         .update({ reserved: false, name: null });
 
-      loadSeats();
+      if (error) {
+        console.error("Reset failed:", error);
+        alert("Reset failed. Check console for details.");
+        return false;
+      }
+
+      // Optionally confirm how many rows were affected
+      console.log("Reset successful. Rows:", data?.length ?? "(unknown)");
+      // reload UI
+      await loadSeats();
+      return true;
+    } catch (err) {
+      console.error("Unexpected error during reset:", err);
+      alert("Unexpected error. Check console.");
+      return false;
     }
+  }
 
     // Handle seat clicks
     seats.forEach(seat => {
@@ -184,14 +201,22 @@
     });
 
     // Admin reset button
-    resetBtn.addEventListener("click", async () => {
-      if (confirm("Reset ALL reservations?")) {
-        await resetAllSeats();
-      }
-    });
+ resetBtn.addEventListener("click", async () => {
+    if (!confirm("Reset ALL reservations?")) return;
+
+    // Disable button to avoid double clicks
+    resetBtn.disabled = true;
+    const ok = await resetAllSeats();
+    resetBtn.disabled = false;
+
+    if (ok) {
+      alert("All reservations cleared.");
+    }
+  });
 
     // INITIAL LOAD
     loadSeats();
   </script>
 </body>
 </html>
+
