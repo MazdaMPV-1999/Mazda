@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Mazda Seat Reservation</title>
+  <title>Car Seat Reservation</title>
 
   <style>
     body {
@@ -66,120 +66,123 @@
       display: none;
     }
   </style>
+
+  <!-- SUPABASE CLIENT LIBRARY -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
+
 <body>
   <h1>Mazda seat Reservation</h1>
 
-  <!-- Front Row (2 seats) -->
+  <!-- Front Row -->
   <div class="row">
-    <div class="seat available" data-seat="Front Left">Driver</div>
-    <div class="seat available" data-seat="Front Right">DJ</div>
+    <div class="seat available" data-seat="F-L">Driver</div>
+    <div class="seat available" data-seat="F-R">DJ</div>
   </div>
 
-  <!-- Second Row (2 seats) -->
+  <!-- Second Row -->
   <div class="row">
-    <div class="seat available" data-seat="Second Left">S2-L</div>
-    <div class="seat available" data-seat="Second Right">S2-R</div>
+    <div class="seat available" data-seat="S2-L">S2-L</div>
+    <div class="seat available" data-seat="S2-R">S2-R</div>
   </div>
 
-  <!-- Third Row (3 seats) -->
+  <!-- Third Row -->
   <div class="row">
-    <div class="seat available" data-seat="Third Left">S3-L</div>
-    <div class="seat available" data-seat="Third Middle">S3-M</div>
-    <div class="seat available" data-seat="Third Right">S3-R</div>
+    <div class="seat available" data-seat="S3-L">S3-L</div>
+    <div class="seat available" data-seat="S3-M">S3-M</div>
+    <div class="seat available" data-seat="S3-R">S3-R</div>
   </div>
 
   <button id="admin-btn">Admin Login</button>
   <button id="reset">Reset All Reservations</button>
 
+
+  <!-- ⭐⭐⭐ THIS IS WHERE YOUR NEW SUPABASE JAVASCRIPT GOES ⭐⭐⭐ -->
   <script>
+    const { createClient } = supabase;
+
+    const SUPABASE_URL = "https://jxgulckpenmoxzypzovd.supabase.co";       
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4Z3VsY2twZW5tb3h6eXB6b3ZkIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MzEwOTI1OCwiZXhwIjoyMDc4Njg1MjU4fQ.FzByFCFje3Qd2Z6TAbHFnjVKyIzoHt7QRWhvPmDEZ0I";
+
+    const db = createClient(https://jxgulckpenmoxzypzovd.supabase.co, eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4Z3VsY2twZW5tb3h6eXB6b3ZkIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MzEwOTI1OCwiZXhwIjoyMDc4Njg1MjU4fQ.FzByFCFje3Qd2Z6TAbHFnjVKyIzoHt7QRWhvPmDEZ0I);
+
     const seats = document.querySelectorAll(".seat");
     const adminBtn = document.getElementById("admin-btn");
     const resetBtn = document.getElementById("reset");
 
-    const ADMIN_PASSWORD = "admin123";
-
-    // Load saved reservations from localStorage
-    function loadReservations() {
-      const savedSeats = JSON.parse(localStorage.getItem("seatData")) || {};
+    // Load seats from DB
+    async function loadSeats() {
+      const { data } = await db.from("seats").select("*");
 
       seats.forEach(seat => {
-        const id = seat.dataset.seat;
+        seat.classList.remove("reserved");
+        seat.classList.add("available");
+        seat.textContent = seat.dataset.seat;
+      });
 
-        if (savedSeats[id]) {
+      data.forEach(row => {
+        const seat = document.querySelector(`[data-seat="${row.id}"]`);
+        if (row.reserved) {
           seat.classList.remove("available");
           seat.classList.add("reserved");
-          seat.textContent = savedSeats[id].name;
+          seat.textContent = row.name;
         }
       });
     }
 
-    // Save all seats to localStorage
-    function saveReservations() {
-      const seatData = {};
+    // Reserve a seat
+    async function reserveSeat(id, name) {
+      await db.from("seats").update({
+        reserved: true,
+        name: name
+      }).eq("id", id);
+    }
 
-      seats.forEach(seat => {
-        const id = seat.dataset.seat;
-
-        if (seat.classList.contains("reserved")) {
-          seatData[id] = { name: seat.textContent.trim() };
-        }
+    // Reset seats
+    async function resetAll() {
+      await db.from("seats").update({
+        reserved: false,
+        name: null
       });
-
-      localStorage.setItem("seatData", JSON.stringify(seatData));
     }
 
     // Seat click logic
     seats.forEach(seat => {
-      seat.addEventListener("click", () => {
+      seat.addEventListener("click", async () => {
         const id = seat.dataset.seat;
 
-        // If seat is available ? reserve it with a name
         if (seat.classList.contains("available")) {
-          const name = prompt("Enter your name to reserve this seat:");
-
-          if (name && name.trim() !== "") {
-            seat.classList.remove("available");
-            seat.classList.add("reserved");
-            seat.textContent = name.trim();
-            saveReservations();
+          const name = prompt("Enter your name:");
+          if (name && name.trim()) {
+            await reserveSeat(id, name.trim());
           }
-
         } else {
-          // If reserved: show who reserved it, but allow only admin to clear
           alert(`Seat reserved by: ${seat.textContent}`);
         }
       });
     });
 
-    // Admin login
-    adminBtn.addEventListener("click", () => {
-      const pw = prompt("Enter admin password:");
-
-      if (pw === ADMIN_PASSWORD) {
-        alert("Admin mode enabled");
-        resetBtn.style.display = "inline-block";
-      } else {
-        alert("Incorrect password");
+    // Admin Reset
+    resetBtn.addEventListener("click", async () => {
+      if (confirm("Reset all reservations?")) {
+        await resetAll();
       }
     });
 
-    // Reset reservations (Admin only)
-    resetBtn.addEventListener("click", () => {
-      if (!confirm("Are you sure you want to reset ALL reservations?")) return;
+    // 🔥 REALTIME LISTENER
+    db
+      .channel("seat-changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "seats" },
+        payload => {
+          loadSeats(); // refresh UI on any change
+        }
+      )
+      .subscribe();
 
-      seats.forEach(seat => {
-        seat.classList.remove("reserved");
-        seat.classList.add("available");
-        seat.textContent = seat.dataset.seatCode || seat.textContent.split(" ")[0];
-      });
-
-      localStorage.removeItem("seatData");
-      location.reload();
-    });
-
-    // Initialize app
-    loadReservations();
+    loadSeats();
   </script>
+
 </body>
 </html>
