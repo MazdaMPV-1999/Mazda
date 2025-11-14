@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Car Seat Reservation</title>
+  <title>Mazda Seat Reservation</title>
 
   <style>
     body {
@@ -67,26 +67,26 @@
     }
   </style>
 
-  <!-- SUPABASE CLIENT LIBRARY -->
+  <!-- SUPABASE CLIENT -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 
 <body>
-  <h1>Mazda seat Reservation</h1>
+  <h1>Mazda Seat Reservation</h1>
 
-  <!-- Front Row -->
+  <!-- FRONT ROW (2 seats) -->
   <div class="row">
-    <div class="seat available" data-seat="F-L">Driver</div>
-    <div class="seat available" data-seat="F-R">DJ</div>
+    <div class="seat available" data-seat="Driver">Driver</div>
+    <div class="seat available" data-seat="DJ">DJ</div>
   </div>
 
-  <!-- Second Row -->
+  <!-- SECOND ROW (2 seats) -->
   <div class="row">
     <div class="seat available" data-seat="S2-L">S2-L</div>
     <div class="seat available" data-seat="S2-R">S2-R</div>
   </div>
 
-  <!-- Third Row -->
+  <!-- THIRD ROW (3 seats) -->
   <div class="row">
     <div class="seat available" data-seat="S3-L">S3-L</div>
     <div class="seat available" data-seat="S3-M">S3-M</div>
@@ -96,30 +96,37 @@
   <button id="admin-btn">Admin Login</button>
   <button id="reset">Reset All Reservations</button>
 
-
-  <!-- ⭐⭐⭐ THIS IS WHERE YOUR NEW SUPABASE JAVASCRIPT GOES ⭐⭐⭐ -->
   <script>
     const { createClient } = supabase;
 
-    const SUPABASE_URL = "https://jxgulckpenmoxzypzovd.supabase.co";       
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4Z3VsY2twZW5tb3h6eXB6b3ZkIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MzEwOTI1OCwiZXhwIjoyMDc4Njg1MjU4fQ.FzByFCFje3Qd2Z6TAbHFnjVKyIzoHt7QRWhvPmDEZ0I";
+    const SUPABASE_URL = "https://jxgulckpenmoxzypzovd.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_publishable_tgE1RCU8S3j1frUhCZKTeA_1-9fMBSx";
 
-    const db = createClient(https://jxgulckpenmoxzypzovd.supabase.co, eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4Z3VsY2twZW5tb3h6eXB6b3ZkIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MzEwOTI1OCwiZXhwIjoyMDc4Njg1MjU4fQ.FzByFCFje3Qd2Z6TAbHFnjVKyIzoHt7QRWhvPmDEZ0I);
+    const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const seats = document.querySelectorAll(".seat");
     const adminBtn = document.getElementById("admin-btn");
     const resetBtn = document.getElementById("reset");
 
-    // Load seats from DB
-    async function loadSeats() {
-      const { data } = await db.from("seats").select("*");
+    const ADMIN_PASSWORD = "admin123"; // You can change this
 
+    // Load seat data from Supabase
+    async function loadSeats() {
+      const { data, error } = await db.from("seats").select("*");
+
+      if (error) {
+        console.error(error);
+        return;
+      }
+
+      // First reset all seats visually
       seats.forEach(seat => {
         seat.classList.remove("reserved");
         seat.classList.add("available");
         seat.textContent = seat.dataset.seat;
       });
 
+      // Apply reserved seats
       data.forEach(row => {
         const seat = document.querySelector(`[data-seat="${row.id}"]`);
         if (row.reserved) {
@@ -132,21 +139,24 @@
 
     // Reserve a seat
     async function reserveSeat(id, name) {
-      await db.from("seats").update({
-        reserved: true,
-        name: name
-      }).eq("id", id);
+      await db
+        .from("seats")
+        .update({ reserved: true, name })
+        .eq("id", id);
+
+      loadSeats();
     }
 
-    // Reset seats
-    async function resetAll() {
-      await db.from("seats").update({
-        reserved: false,
-        name: null
-      });
+    // Reset all seats
+    async function resetAllSeats() {
+      await db
+        .from("seats")
+        .update({ reserved: false, name: null });
+
+      loadSeats();
     }
 
-    // Seat click logic
+    // Handle seat clicks
     seats.forEach(seat => {
       seat.addEventListener("click", async () => {
         const id = seat.dataset.seat;
@@ -162,27 +172,26 @@
       });
     });
 
-    // Admin Reset
-    resetBtn.addEventListener("click", async () => {
-      if (confirm("Reset all reservations?")) {
-        await resetAll();
+    // Admin login
+    adminBtn.addEventListener("click", () => {
+      const pw = prompt("Enter admin password:");
+      if (pw === ADMIN_PASSWORD) {
+        alert("Admin access granted");
+        resetBtn.style.display = "block";
+      } else {
+        alert("Incorrect password");
       }
     });
 
-    // 🔥 REALTIME LISTENER
-    db
-      .channel("seat-changes")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "seats" },
-        payload => {
-          loadSeats(); // refresh UI on any change
-        }
-      )
-      .subscribe();
+    // Admin reset button
+    resetBtn.addEventListener("click", async () => {
+      if (confirm("Reset ALL reservations?")) {
+        await resetAllSeats();
+      }
+    });
 
+    // INITIAL LOAD
     loadSeats();
   </script>
-
 </body>
 </html>
