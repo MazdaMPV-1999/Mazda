@@ -67,7 +67,7 @@
     }
   </style>
 
-  <!-- SUPABASE CLIENT -->
+  <!-- Supabase client -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 
@@ -97,89 +97,78 @@
   <button id="reset">Reset All Reservations</button>
 
   <script>
-    const { createClient } = supabase;
-
+    // --- Supabase config ---
     const SUPABASE_URL = "https://jxgulckpenmoxzypzovd.supabase.co";
-    const SUPABASE_ANON_KEY = "sb_publishable_tgE1RCU8S3j1frUhCZKTeA_1-9fMBSx";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4Z3VsY2twZW5tb3h6eXB6b3ZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMxMDkyNTgsImV4cCI6MjA3ODY4NTI1OH0.qTTn615kI2_V1osMm6t4-foVqeu1uK40dLznxYRQavs";
 
+    const { createClient } = supabase;
     const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const seats = document.querySelectorAll(".seat");
     const adminBtn = document.getElementById("admin-btn");
     const resetBtn = document.getElementById("reset");
 
-    const ADMIN_PASSWORD = "admin123"; // You can change this
+    const ADMIN_PASSWORD = "admin123"; // change as needed
 
-    // Load seat data from Supabase
+    // --- Load seat data ---
     async function loadSeats() {
-      const { data, error } = await db.from("seats").select("*");
+      try {
+        const { data, error } = await db.from("seats").select("*");
+        if (error) throw error;
 
-      if (error) {
-        console.error(error);
-        return;
+        seats.forEach(seat => {
+          seat.classList.remove("reserved");
+          seat.classList.add("available");
+          seat.textContent = seat.dataset.seat;
+        });
+
+        data.forEach(row => {
+          const seat = document.querySelector(`[data-seat="${row.id}"]`);
+          if (row.reserved) {
+            seat.classList.remove("available");
+            seat.classList.add("reserved");
+            seat.textContent = row.name;
+          }
+        });
+      } catch (err) {
+        console.error("Error loading seats:", err);
+        alert("Failed to load seats. Check console.");
       }
-
-      // First reset all seats visually
-      seats.forEach(seat => {
-        seat.classList.remove("reserved");
-        seat.classList.add("available");
-        seat.textContent = seat.dataset.seat;
-      });
-
-      // Apply reserved seats
-      data.forEach(row => {
-        const seat = document.querySelector(`[data-seat="${row.id}"]`);
-        if (row.reserved) {
-          seat.classList.remove("available");
-          seat.classList.add("reserved");
-          seat.textContent = row.name;
-        }
-      });
     }
 
-    // Reserve a seat
+    // --- Reserve seat ---
     async function reserveSeat(id, name) {
-      await db
-        .from("seats")
-        .update({ reserved: true, name })
-        .eq("id", id);
-
-      loadSeats();
+      try {
+        const { data, error } = await db.from("seats").update({ reserved: true, name }).eq("id", id);
+        if (error) throw error;
+        loadSeats();
+      } catch (err) {
+        console.error("Error reserving seat:", err);
+        alert("Failed to reserve seat. Check console.");
+      }
     }
 
-    // Reset all seats
-  async function resetAllSeats() {
-    try {
-      // Update all rows: set reserved=false and name=null
-      const { data, error } = await db
-        .from('seats')
-        .update({ reserved: false, name: null });
-
-      if (error) {
-        console.error("Reset failed:", error);
-        alert("Reset failed. Check console for details.");
+    // --- Reset all seats ---
+    async function resetAllSeats() {
+      try {
+        const { data, error } = await db.from("seats").update({ reserved: false, name: null });
+        if (error) throw error;
+        console.log("Reset successful:", data);
+        loadSeats();
+        return true;
+      } catch (err) {
+        console.error("Reset failed:", err);
+        alert("Reset failed. Check console.");
         return false;
       }
-
-      // Optionally confirm how many rows were affected
-      console.log("Reset successful. Rows:", data?.length ?? "(unknown)");
-      // reload UI
-      await loadSeats();
-      return true;
-    } catch (err) {
-      console.error("Unexpected error during reset:", err);
-      alert("Unexpected error. Check console.");
-      return false;
     }
-  }
 
-    // Handle seat clicks
+    // --- Seat click events ---
     seats.forEach(seat => {
       seat.addEventListener("click", async () => {
         const id = seat.dataset.seat;
-
         if (seat.classList.contains("available")) {
-          const name = prompt("Enter your name:");
+          const name = prompt("Enter your name to reserve this seat:");
           if (name && name.trim()) {
             await reserveSeat(id, name.trim());
           }
@@ -189,7 +178,7 @@
       });
     });
 
-    // Admin login
+    // --- Admin login ---
     adminBtn.addEventListener("click", () => {
       const pw = prompt("Enter admin password:");
       if (pw === ADMIN_PASSWORD) {
@@ -200,23 +189,17 @@
       }
     });
 
-    // Admin reset button
- resetBtn.addEventListener("click", async () => {
-    if (!confirm("Reset ALL reservations?")) return;
+    // --- Reset button ---
+    resetBtn.addEventListener("click", async () => {
+      if (!confirm("Reset ALL reservations?")) return;
+      resetBtn.disabled = true;
+      const ok = await resetAllSeats();
+      resetBtn.disabled = false;
+      if (ok) alert("All reservations cleared.");
+    });
 
-    // Disable button to avoid double clicks
-    resetBtn.disabled = true;
-    const ok = await resetAllSeats();
-    resetBtn.disabled = false;
-
-    if (ok) {
-      alert("All reservations cleared.");
-    }
-  });
-
-    // INITIAL LOAD
+    // --- INITIAL LOAD ---
     loadSeats();
   </script>
 </body>
 </html>
-
